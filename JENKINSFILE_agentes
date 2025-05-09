@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+    
+    stages {
+
+        stage ('Clonar el código del repositorio') {
+            agent {label 'agent1'}
+            steps {
+                sh 'whoami'
+                sh 'hostname'
+                echo "Pipeline para el ejercicio de agentes Jenkins, me traigo el código de mi repo de git"
+                git 'https://github.com/daniel-unir/helloworld.git'
+                sh 'ls -lah'
+                echo '$WORKSPACE'
+                stash(name: 'daniel')
+                deleteDir()
+            }
+        }
+
+        stage ('Build') {
+            agent { label 'agent2'}
+            steps {
+                sh 'whoami'
+                sh 'hostname'
+                echo '$WORKSPACE'
+                echo 'NO HAY QUE COMPILAR NADA, ESTO ES PYTHON'
+            }
+        }
+
+        stage ('Tests') {
+
+            parallel {
+
+                stage ('Unit') {
+                    agent { label 'agent2'}
+                    steps {
+                        echo '$WORKSPACE'
+                        sh 'whoami'
+                        sh 'hostname'
+                        unstash(name: 'daniel')
+                        sh 'export PYTHONPATH=$WORKSPACE && pytest --junitxml=result-unit.xml test/unit'
+                        deleteDir()
+                    }
+                }
+
+                stage ('Service') {
+                    agent { label 'agent2'}
+                    steps {
+                        catchError (buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                unstash(name: 'daniel')
+                                sh 'whoami'
+                                sh 'hostname'
+                                echo '$WORKSPACE'
+                                echo 'Levantamos el API de la calculadora con Flask'
+                                sh 'export FLASK_APP=$WORKSPACE/app/api.py && flask run &'
+                                echo 'Levantamos el API de Wiremock'
+                                sh 'java -jar /home/daniel/unir/wiremock/wiremock-standalone-3.13.0.jar --port 9090 --root-dir /home/daniel/unir/wiremock &'
+                                sh 'sleep 5s'
+                                sh 'export PYTHONPATH=$WORKSPACE && pytest --junitxml=result-rest.xml test/rest'
+                                stash(name: 'resultados')
+                                deleteDir()
+                        }
+                    }
+                }
+            }
+        }
+
+        stage ('Results') {
+            steps {
+                unstash(name: 'resultados')
+                echo '$WORKSPACE'
+                sh 'whoami'
+                sh 'hostname'
+                junit 'result*.xml'
+                deleteDir()
+            }
+        }
+    }
+}
