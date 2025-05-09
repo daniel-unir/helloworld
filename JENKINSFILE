@@ -35,7 +35,6 @@ pipeline {
                                 sh 'export FLASK_APP=$WORKSPACE/app/api.py && flask run &'
                                 echo 'Levantamos el API de Wiremock'
                                 sh 'java -jar /home/daniel/unir/wiremock/wiremock-standalone-3.13.0.jar --port 9090 --root-dir /home/daniel/unir/wiremock &'
-                                sh 'sleep 5s'
                                 sh 'export PYTHONPATH=$WORKSPACE && pytest --junitxml=result-rest.xml test/rest'
                         }
                     }
