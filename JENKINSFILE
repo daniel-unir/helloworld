@@ -1,0 +1,19 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage ('Clonar el código del repositorio') {
+            steps {
+                echo "Pipeline para el ejercicio Jenkins 1, me traigo el código de mi repo de git"
+                git 'https://github.com/daniel-unir/helloworld.git'
+                sh 'ls -lah'
+                echo '$WORKSPACE'
+            }
+        }
+        stage ('Build') {
+            steps {
+                echo 'NO HAY QUE COMPILAR NADA, ESTO ES PYTHON'
+            }
+        }
+    }
+}
