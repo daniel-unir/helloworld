@@ -2,6 +2,7 @@ pipeline {
     agent any
     
     stages {
+
         stage ('Clonar el código del repositorio') {
             steps {
                 echo "Pipeline para el ejercicio Jenkins 1, me traigo el código de mi repo de git"
@@ -10,9 +11,41 @@ pipeline {
                 echo '$WORKSPACE'
             }
         }
+
         stage ('Build') {
             steps {
                 echo 'NO HAY QUE COMPILAR NADA, ESTO ES PYTHON'
+            }
+        }
+
+        stage ('Tests') {
+
+            parallel {
+
+                stage ('Unit') {
+                    steps {
+                        sh 'export PYTHONPATH=$WORKSPACE && pytest --junitxml=result-unit.xml test/unit'
+                    }
+                }
+
+                stage ('Service') {
+                    steps {
+                        catchError (buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                echo 'Levantamos el API de la calculadora con Flask'
+                                sh 'export FLASK_APP=$WORKSPACE/app/api.py && flask run &'
+                                echo 'Levantamos el API de Wiremock'
+                                sh 'java -jar /home/daniel/unir/wiremock/wiremock-standalone-3.13.0.jar --port 9090 --root-dir /home/daniel/unir/wiremock &'
+                                sh 'sleep 5s'
+                                sh 'export PYTHONPATH=$WORKSPACE && pytest --junitxml=result-rest.xml test/rest'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage ('Results') {
+            steps {
+                junit 'result*.xml'
             }
         }
     }
